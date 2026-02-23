@@ -8,8 +8,8 @@ class TimeTable:
         excel_path,
         slots_per_day=5,
         days=5,
-        max_teacher_slots_per_day=2,
-        max_subject_slots_per_day=2
+        max_teacher_slots_per_day=1,
+        max_subject_slots_per_day=1
     ):
         self.excel_path = excel_path
         self.slots_per_day = slots_per_day
