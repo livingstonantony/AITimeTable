@@ -141,56 +141,110 @@ def display_timetable_details(timetable):
     df = pd.DataFrame(slots)
 
     # Create tabs for different views
-    tab1, tab2, tab3 = st.tabs(["📆 Calendar View", "📋 Table View", "📊 Summary"])
+    tab1, tab2, tab3 = st.tabs(["📅 Calendar View", "📋 Table View", "📊 Summary"])
 
     with tab1:
-        st.markdown("## Weekly College Schedule")
+        st.markdown("## 📅 Weekly College Schedule")
         
         # Day mapping
         days_map = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
         
         # Get unique days and slots
         unique_days = sorted(df["day"].unique())
+        unique_slots = sorted(df["slot"].unique())
         
         # Create color mapping for subjects
         subjects = df["subject"].unique()
         colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2"]
         subject_colors = {subject: colors[i % len(colors)] for i, subject in enumerate(subjects)}
         
-        # Display days in columns with colored period boxes
-        num_cols = min(5, len(unique_days))
-        cols = st.columns(num_cols)
+        st.markdown("##### 📋 College Timetable Grid - Periods as Columns, Days as Rows")
         
-        for col_idx, day_num in enumerate(unique_days):
-            with cols[col_idx % num_cols]:
-                day_name = days_map.get(int(day_num), f"Day {int(day_num)}")
-                day_data = df[df["day"] == day_num].sort_values("slot")
+        st.markdown("""
+        <style>
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .timetable th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            border: none;
+        }
+        .timetable td {
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        .timetable tr:nth-child(even) {
+            background: #f8f9ff;
+        }
+        .timetable tr:nth-child(odd) {
+            background: white;
+        }
+        .day-cell {
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .subject-text {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .teacher-text {
+            font-weight: 600;
+            font-size: 12px;
+            display: block;
+            margin-top: 4px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Create the table as HTML string
+        table_html = '<table class="timetable"><thead><tr><th>DAY</th>'
+        
+        # Add period headers
+        for slot in unique_slots:
+            table_html += f'<th>Period {int(slot)}</th>'
+        table_html += '</tr></thead><tbody>'
+        
+        # Add rows for each day
+        for day_num in unique_days:
+            day_name = days_map.get(int(day_num), f"Day {int(day_num)}")
+            table_html += f'<tr><td class="day-cell">{day_name}</td>'
+            
+            # Add cells for each period
+            for slot in unique_slots:
+                class_data = df[(df["day"] == day_num) & (df["slot"] == slot)]
                 
-                # Day header with professional styling
-                st.markdown(f"### {day_name}", help="View schedule for this day")
-                
-                # Display each period as a colored card
-                for _, row in day_data.iterrows():
-                    subject = row["subject"]
-                    teacher = row["teacher"]
-                    period = int(row["slot"])
-                    color = subject_colors.get(subject, "#cccccc")
+                if len(class_data) > 0:
+                    row_data = class_data.iloc[0]
+                    subject = row_data["subject"]
+                    teacher = row_data["teacher"]
+                    color = subject_colors.get(subject, "#667eea")
                     
-                    # Create styled period card with inline CSS
-                    st.markdown(f"""
-                    <div style='
-                        background: linear-gradient(135deg, {color}33 0%, {color}18 100%);
-                        border-left: 5px solid {color};
-                        border-radius: 8px;
-                        padding: 12px;
-                        margin-bottom: 10px;
-                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                    '>
-                        <div style='font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600;'>Period {period}</div>
-                        <div style='font-size: 14px; font-weight: 700; color: {color}; margin-bottom: 6px;'>{subject}</div>
-                        <div style='font-size: 12px; color: #555;'>👨‍🏫 {teacher}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    table_html += f'''<td style="border-left: 5px solid {color}; background: linear-gradient(135deg, {color}10 0%, {color}05 100%);">
+                        <span class="subject-text" style="color: {color};">{subject}</span>
+                        <span class="teacher-text" style="color: #333;">👨‍🏫 {teacher}</span>
+                    </td>'''
+                else:
+                    table_html += '<td style="background: #fafafa; color: #ccc;">-</td>'
+            
+            table_html += '</tr>'
+        
+        table_html += '</tbody></table>'
+        
+        st.markdown(table_html, unsafe_allow_html=True)
         
         # Legend section
         st.markdown("---")
@@ -202,12 +256,13 @@ def display_timetable_details(timetable):
                 st.markdown(f"""
                 <div style='
                     background: linear-gradient(135deg, {color} 0%, {color}dd 100%);
-                    border-radius: 6px;
-                    padding: 10px;
+                    border-radius: 8px;
+                    padding: 12px;
                     color: white;
                     text-align: center;
                     font-weight: 700;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                    font-size: 13px;
                 '>
                     {subject}
                 </div>
