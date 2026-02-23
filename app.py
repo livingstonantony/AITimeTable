@@ -1,0 +1,468 @@
+import streamlit as st
+import pandas as pd
+import io
+from datetime import datetime
+import sys
+import os
+
+# Add the current directory to the path to import local modules
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from database import (
+    init_db,
+    verify_user,
+    create_user,
+    user_exists,
+    save_timetable,
+    get_all_timetables,
+    get_timetable,
+    get_timetable_slots,
+    get_timetable_requirements,
+    get_user,
+)
+from TimeTable import TimeTable
+
+# Initialize database
+init_db()
+
+# Configure Streamlit
+st.set_page_config(page_title="AI TimeTable", layout="wide", initial_sidebar_state="expanded")
+
+# Initialize session state
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "page" not in st.session_state:
+    st.session_state.page = "login"
+
+
+# ==================== AUTHENTICATION ====================
+def login_page():
+    """Login/Register page."""
+    st.title("🎓 AI TimeTable System")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Login")
+        login_username = st.text_input("Username", key="login_username")
+        login_password = st.text_input("Password", type="password", key="login_password")
+        login_role = st.selectbox("Login as", ["Teacher", "Student"], key="login_role")
+
+        if st.button("Login", key="login_btn"):
+            user = verify_user(login_username, login_password)
+            if user and user["role"].lower() == login_role.lower():
+                st.session_state.user = user
+                st.session_state.page = "home"
+                st.rerun()
+            else:
+                st.error("Invalid credentials or role mismatch")
+
+    with col2:
+        st.subheader("Register")
+        reg_username = st.text_input("Username", key="reg_username")
+        reg_password = st.text_input("Password", type="password", key="reg_password")
+        reg_name = st.text_input("Full Name", key="reg_name")
+        reg_role = st.selectbox("Register as", ["Teacher", "Student"], key="reg_role")
+
+        if st.button("Register", key="register_btn"):
+            if not reg_username or not reg_password or not reg_name:
+                st.error("Please fill all fields")
+            elif user_exists(reg_username):
+                st.error("Username already exists")
+            else:
+                if create_user(reg_username, reg_password, reg_role, reg_name):
+                    st.success("Registration successful! Please login.")
+                else:
+                    st.error("Registration failed")
+
+
+# ==================== HOME PAGE ====================
+def home_page():
+    """Home page with timetable display."""
+    st.title(f"🎓 Welcome, {st.session_state.user['name']}!")
+
+    if st.button("Logout", key="logout_btn"):
+        st.session_state.user = None
+        st.session_state.page = "login"
+        st.rerun()
+
+    st.divider()
+
+    # Show role-based options
+    if st.session_state.user["role"].lower() == "teacher":
+        st.subheader("Your TimeTable")
+        display_timetables()
+
+    elif st.session_state.user["role"].lower() == "student":
+        st.subheader("Class TimeTable")
+        display_timetables()
+
+
+def display_timetables():
+    """Display available timetables."""
+    timetables = get_all_timetables()
+
+    if not timetables:
+        st.info("No timetables available yet.")
+        return
+
+    # Timetable selection
+    timetable_names = [f"{tt['name']} (Generated: {tt['generated_at']})" for tt in timetables]
+    selected_idx = st.selectbox("Select a timetable:", range(len(timetables)))
+
+    if selected_idx is not None:
+        timetable = timetables[selected_idx]
+        display_timetable_details(timetable)
+
+
+def display_timetable_details(timetable):
+    """Display timetable in a calendar view."""
+    timetable_id = timetable["id"]
+
+    # Header with metadata
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(f"# 📅 {timetable['name']}")
+    with col2:
+        st.markdown(f"**ID:** `{timetable_id}`")
+    
+    st.markdown(f"*Generated: {timetable['generated_at']}*")
+    st.divider()
+
+    # Get slots
+    slots = get_timetable_slots(timetable_id)
+    teachers_hours, subjects_hours = get_timetable_requirements(timetable_id)
+
+    if not slots:
+        st.warning("⚠️ No slots in this timetable.")
+        return
+
+    # Convert to DataFrame
+    df = pd.DataFrame(slots)
+
+    # Create tabs for different views
+    tab1, tab2, tab3 = st.tabs(["📆 Calendar View", "📋 Table View", "📊 Summary"])
+
+    with tab1:
+        st.markdown("## Weekly College Schedule")
+        
+        # Day mapping
+        days_map = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+        
+        # Get unique days and slots
+        unique_days = sorted(df["day"].unique())
+        
+        # Create color mapping for subjects
+        subjects = df["subject"].unique()
+        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2"]
+        subject_colors = {subject: colors[i % len(colors)] for i, subject in enumerate(subjects)}
+        
+        # Display days in columns with colored period boxes
+        num_cols = min(5, len(unique_days))
+        cols = st.columns(num_cols)
+        
+        for col_idx, day_num in enumerate(unique_days):
+            with cols[col_idx % num_cols]:
+                day_name = days_map.get(int(day_num), f"Day {int(day_num)}")
+                day_data = df[df["day"] == day_num].sort_values("slot")
+                
+                # Day header with professional styling
+                st.markdown(f"### {day_name}", help="View schedule for this day")
+                
+                # Display each period as a colored card
+                for _, row in day_data.iterrows():
+                    subject = row["subject"]
+                    teacher = row["teacher"]
+                    period = int(row["slot"])
+                    color = subject_colors.get(subject, "#cccccc")
+                    
+                    # Create styled period card with inline CSS
+                    st.markdown(f"""
+                    <div style='
+                        background: linear-gradient(135deg, {color}33 0%, {color}18 100%);
+                        border-left: 5px solid {color};
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 10px;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                    '>
+                        <div style='font-size: 11px; color: #666; margin-bottom: 4px; font-weight: 600;'>Period {period}</div>
+                        <div style='font-size: 14px; font-weight: 700; color: {color}; margin-bottom: 6px;'>{subject}</div>
+                        <div style='font-size: 12px; color: #555;'>👨‍🏫 {teacher}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # Legend section
+        st.markdown("---")
+        st.markdown("### 📚 Subject Color Legend")
+        
+        legend_cols = st.columns(min(4, len(subject_colors)))
+        for idx, (subject, color) in enumerate(subject_colors.items()):
+            with legend_cols[idx % len(legend_cols)]:
+                st.markdown(f"""
+                <div style='
+                    background: linear-gradient(135deg, {color} 0%, {color}dd 100%);
+                    border-radius: 6px;
+                    padding: 10px;
+                    color: white;
+                    text-align: center;
+                    font-weight: 700;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+                '>
+                    {subject}
+                </div>
+                """, unsafe_allow_html=True)
+
+    with tab2:
+        st.markdown("#### Detailed Schedule Table")
+        
+        # Prepare data
+        display_df = df.copy()
+        display_df = display_df[["day", "slot", "teacher", "subject"]].copy()
+        
+        # Map day numbers to names
+        day_names = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+        display_df["day"] = display_df["day"].apply(lambda x: day_names.get(int(x), f"Day {int(x)}"))
+        display_df["slot"] = display_df["slot"].astype(int)
+        display_df = display_df.sort_values(["day", "slot"])
+        
+        # Rename columns with emojis
+        display_df.columns = ["Day", "Period", "Teacher", "Subject"]
+        
+        # Display as dataframe
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # Show table statistics
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Classes", len(display_df), help="Total scheduled classes")
+        with col2:
+            st.metric("Unique Teachers", display_df["Teacher"].nunique(), help="Number of different teachers")
+        with col3:
+            st.metric("Unique Subjects", display_df["Subject"].nunique(), help="Number of different subjects")
+
+    with tab3:
+        st.markdown("#### Summary & Statistics")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("##### 👨‍🏫 Teacher Hours")
+            teacher_data = []
+            for teacher, hours in teachers_hours.items():
+                teacher_data.append({
+                    "Teacher": teacher,
+                    "Required Hours": hours
+                })
+            if teacher_data:
+                teacher_df = pd.DataFrame(teacher_data)
+                st.dataframe(teacher_df, use_container_width=True, hide_index=True)
+                st.metric("Total Teacher Hours", sum(teachers_hours.values()))
+
+        with col2:
+            st.markdown("##### 📚 Subject Hours")
+            subject_data = []
+            for subject, hours in subjects_hours.items():
+                subject_data.append({
+                    "Subject": subject,
+                    "Required Hours": hours
+                })
+            if subject_data:
+                subject_df = pd.DataFrame(subject_data)
+                st.dataframe(subject_df, use_container_width=True, hide_index=True)
+                st.metric("Total Subject Hours", sum(subjects_hours.values()))
+        
+        # Statistics
+        st.markdown("##### 📊 Schedule Statistics")
+        max_slots = int(df["slot"].max())
+        stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+        
+        with stats_col1:
+            st.metric("Total Days", len(unique_days))
+        
+        with stats_col2:
+            st.metric("Periods/Day", max_slots)
+        
+        with stats_col3:
+            st.metric("Total Slots", len(slots))
+        
+        with stats_col4:
+            st.metric("Total Classes", len(teachers_hours))
+
+
+# ==================== ADMIN PANEL ====================
+def admin_panel():
+    """Admin panel to generate and manage timetables."""
+    st.title("⚙️ Admin Panel - Generate TimeTable")
+
+    st.write("Upload an Excel file to generate a timetable.")
+
+    # File uploader
+    uploaded_file = st.file_uploader("Choose Excel file", type=["xlsx", "xls"])
+
+    if uploaded_file is not None:
+        try:
+            # Load Excel file
+            teachers_df = pd.read_excel(uploaded_file, sheet_name="Teachers")
+            subjects_df = pd.read_excel(uploaded_file, sheet_name="Subjects")
+
+            teachers_df.columns = teachers_df.columns.str.strip()
+            subjects_df.columns = subjects_df.columns.str.strip()
+
+            st.success("✅ Excel file loaded successfully!")
+
+            # Display loaded data
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write("**Teachers:**")
+                st.dataframe(teachers_df, use_container_width=True)
+
+            with col2:
+                st.write("**Subjects:**")
+                st.dataframe(subjects_df, use_container_width=True)
+
+            # Parameters configuration
+            st.divider()
+            st.subheader("Configure TimeTable Parameters")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                slots_per_day = st.number_input(
+                    "Slots per Day", min_value=1, max_value=10, value=5
+                )
+
+            with col2:
+                days = st.number_input("Number of Days", min_value=1, max_value=7, value=5)
+
+            with col3:
+                max_teacher_slots = st.number_input(
+                    "Max Teacher Slots/Day", min_value=1, max_value=5, value=1
+                )
+
+            with col4:
+                max_subject_slots = st.number_input(
+                    "Max Subject Slots/Day", min_value=1, max_value=5, value=1
+                )
+
+            timetable_name = st.text_input("TimeTable Name", value=f"TimeTable_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+
+            # Generate timetable
+            if st.button("🚀 Generate TimeTable", key="generate_btn"):
+                with st.spinner("Generating timetable... This may take a moment."):
+                    try:
+                        # Create a temporary Excel file
+                        temp_file = "temp_timetable_input.xlsx"
+
+                        with pd.ExcelWriter(temp_file, engine="openpyxl") as writer:
+                            teachers_df.to_excel(writer, sheet_name="Teachers", index=False)
+                            subjects_df.to_excel(writer, sheet_name="Subjects", index=False)
+
+                        # Generate timetable using TimeTable class
+                        timetable = TimeTable(
+                            excel_path=temp_file,
+                            slots_per_day=slots_per_day,
+                            days=days,
+                            max_teacher_slots_per_day=max_teacher_slots,
+                            max_subject_slots_per_day=max_subject_slots,
+                        )
+
+                        timetable.validate_constraints()
+                        timetable.build_model()
+                        timetable.solve()
+
+                        result_df = timetable.to_dataframe()
+
+                        st.success("✅ TimeTable generated successfully!")
+
+                        # Display generated timetable
+                        st.subheader("Generated TimeTable:")
+                        st.dataframe(result_df, use_container_width=True)
+
+                        # Save to database
+                        teachers_dict = dict(
+                            zip(teachers_df["Name"].str.strip(), teachers_df["Hours"])
+                        )
+                        subjects_dict = dict(
+                            zip(subjects_df["Name"].str.strip(), subjects_df["Hours"])
+                        )
+
+                        timetable_id = save_timetable(
+                            name=timetable_name,
+                            days=days,
+                            slots_per_day=slots_per_day,
+                            df=result_df,
+                            teachers_hours=teachers_dict,
+                            subjects_hours=subjects_dict,
+                            user_id=st.session_state.user["id"],
+                        )
+
+                        st.success(f"✅ TimeTable saved to database (ID: {timetable_id})")
+
+                        # Download option
+                        excel_buffer = io.BytesIO()
+                        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+                            result_df.to_excel(writer, sheet_name="TimeTable", index=False)
+                        excel_buffer.seek(0)
+
+                        st.download_button(
+                            label="📥 Download TimeTable (Excel)",
+                            data=excel_buffer,
+                            file_name=f"{timetable_name}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        )
+
+                        # Clean up temp file
+                        if os.path.exists(temp_file):
+                            os.remove(temp_file)
+
+                    except ValueError as e:
+                        st.error(f"❌ Constraint Validation Error:\n{str(e)}")
+                    except RuntimeError as e:
+                        st.error(f"❌ Generation Error:\n{str(e)}")
+                    except Exception as e:
+                        st.error(f"❌ Unexpected Error:\n{str(e)}")
+
+        except Exception as e:
+            st.error(f"Error loading Excel file: {str(e)}")
+
+
+# ==================== MAIN APP ====================
+def main():
+    """Main application logic."""
+    if st.session_state.user is None:
+        login_page()
+    else:
+        # Sidebar menu
+        with st.sidebar:
+            st.title("📚 Menu")
+
+            if st.session_state.user["role"].lower() == "teacher":
+                page = st.radio(
+                    "Navigate to:",
+                    ["Home", "Admin Panel"],
+                    key="nav_menu",
+                )
+            else:
+                page = "Home"
+                st.write("**Student View**")
+
+            if st.button("Logout", key="sidebar_logout"):
+                st.session_state.user = None
+                st.session_state.page = "login"
+                st.rerun()
+
+        # Route to pages
+        if page == "Home":
+            home_page()
+        elif page == "Admin Panel":
+            if st.session_state.user["role"].lower() == "teacher":
+                admin_panel()
+            else:
+                st.error("Only teachers can access the admin panel.")
+
+
+if __name__ == "__main__":
+    main()
