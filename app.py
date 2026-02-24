@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
+import time
 import sys
 import os
 
@@ -441,8 +442,11 @@ def admin_panel():
 
             # Generate timetable
             if st.button("🚀 Generate TimeTable", key="generate_btn"):
-                with st.spinner("Generating timetable... This may take a moment."):
+                with st.spinner("🤖 AI TimeTable is generating... Please wait"):
                     try:
+                        # Add 2 second delay to show loader
+                        time.sleep(3)
+                        
                         # Create a temporary Excel file
                         temp_file = "temp_timetable_input.xlsx"
 
@@ -465,7 +469,9 @@ def admin_panel():
 
                         result_df = timetable.to_dataframe()
 
-                        st.success("✅ TimeTable generated successfully!")
+                        # Success message with celebration
+                        st.success("✅ TimeTable Generated Successfully by AI!")
+                        st.balloons()
 
                         # Display generated timetable in calendar grid view
                         st.subheader("📅 Generated College Timetable Grid")
