@@ -231,3 +231,27 @@ def get_timetable_requirements(timetable_id):
 
     conn.close()
     return teachers, subjects
+
+
+def delete_timetable(timetable_id):
+    """Delete a timetable and all its associated data."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Delete all related records first (cascade delete)
+        cursor.execute("DELETE FROM timetable_slots WHERE timetable_id = ?", (timetable_id,))
+        cursor.execute("DELETE FROM teacher_hours WHERE timetable_id = ?", (timetable_id,))
+        cursor.execute("DELETE FROM subject_hours WHERE timetable_id = ?", (timetable_id,))
+        
+        # Delete the timetable itself
+        cursor.execute("DELETE FROM timetables WHERE id = ?", (timetable_id,))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting timetable: {e}")
+        return False
+    finally:
+        conn.close()

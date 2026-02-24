@@ -19,6 +19,7 @@ from database import (
     get_timetable_slots,
     get_timetable_requirements,
     get_user,
+    delete_timetable,
 )
 from TimeTable import TimeTable
 
@@ -106,13 +107,47 @@ def display_timetables():
         st.info("No timetables available yet.")
         return
 
-    # Timetable selection
-    timetable_names = [f"{tt['name']} (Generated: {tt['generated_at']})" for tt in timetables]
-    selected_idx = st.selectbox("Select a timetable:", range(len(timetables)))
+    # Timetable selection with formatted names showing index
+    timetable_names = [f"{idx + 1}: {tt['name']}" for idx, tt in enumerate(timetables)]
+    selected_idx = st.selectbox("Select a timetable:", range(len(timetables)), format_func=lambda x: timetable_names[x])
 
     if selected_idx is not None:
         timetable = timetables[selected_idx]
-        display_timetable_details(timetable)
+        
+        # Delete button with confirmation
+        col1, col2 = st.columns([4, 1])
+        with col2:
+            if st.button("🗑️ Delete", key=f"delete_btn_{timetable['id']}", help="Delete this timetable"):
+                if st.session_state.get(f"confirm_delete_{timetable['id']}", False):
+                    # Perform deletion
+                    if delete_timetable(timetable['id']):
+                        st.success("✅ Timetable deleted successfully!")
+                        st.session_state[f"confirm_delete_{timetable['id']}"] = False
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to delete timetable")
+                else:
+                    st.session_state[f"confirm_delete_{timetable['id']}"] = True
+                    st.rerun()
+        
+        # Show confirmation dialog
+        if st.session_state.get(f"confirm_delete_{timetable['id']}", False):
+            st.warning(f"⚠️ Are you sure you want to delete '{timetable['name']}'? This action cannot be undone.")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Confirm Delete", key=f"confirm_delete_btn_{timetable['id']}"):
+                    if delete_timetable(timetable['id']):
+                        st.success("✅ Timetable deleted successfully!")
+                        st.session_state[f"confirm_delete_{timetable['id']}"] = False
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to delete timetable")
+            with col2:
+                if st.button("❌ Cancel", key=f"cancel_delete_btn_{timetable['id']}"):
+                    st.session_state[f"confirm_delete_{timetable['id']}"] = False
+                    st.rerun()
+        else:
+            display_timetable_details(timetable)
 
 
 def display_timetable_details(timetable):
