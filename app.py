@@ -193,7 +193,7 @@ def display_timetable_details(timetable):
         colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2"]
         subject_colors = {subject: colors[i % len(colors)] for i, subject in enumerate(subjects)}
         
-        st.markdown("##### 📋 College Timetable Grid - Periods as Columns, Days as Rows")
+        st.markdown("##### 📋 College Timetable Grid - Slots as Columns, Days as Rows")
         
         st.markdown("""
         <style>
@@ -248,9 +248,9 @@ def display_timetable_details(timetable):
         # Create the table as HTML string
         table_html = '<table class="timetable"><thead><tr><th>DAY</th>'
         
-        # Add period headers
+        # Add slot headers
         for slot in unique_slots:
-            table_html += f'<th>Period {int(slot)}</th>'
+            table_html += f'<th>Slot {int(slot)}</th>'
         table_html += '</tr></thead><tbody>'
         
         # Add rows for each day
@@ -317,7 +317,7 @@ def display_timetable_details(timetable):
         display_df = display_df.sort_values(["day", "slot"])
         
         # Rename columns with emojis
-        display_df.columns = ["Day", "Period", "Teacher", "Subject"]
+        display_df.columns = ["Day", "Slot", "Teacher", "Subject"]
         
         # Display as dataframe
         st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -372,7 +372,7 @@ def display_timetable_details(timetable):
             st.metric("Total Days", len(unique_days))
         
         with stats_col2:
-            st.metric("Periods/Day", max_slots)
+            st.metric("Slots/Day", max_slots)
         
         with stats_col3:
             st.metric("Total Slots", len(slots))
@@ -542,9 +542,9 @@ def admin_panel():
                         # Create the table as HTML string
                         table_html = '<table class="timetable"><thead><tr><th>DAY</th>'
                         
-                        # Add period headers
+                        # Add slot headers
                         for slot in unique_slots:
-                            table_html += f'<th>Period {int(slot)}</th>'
+                            table_html += f'<th>Slot {int(slot)}</th>'
                         table_html += '</tr></thead><tbody>'
                         
                         # Add rows for each day
@@ -552,7 +552,7 @@ def admin_panel():
                             day_name = days_map.get(int(day_num), f"Day {int(day_num)}")
                             table_html += f'<tr><td class="day-cell">{day_name}</td>'
                             
-                            # Add cells for each period
+                            # Add cells for each slot
                             for slot in unique_slots:
                                 class_data = display_df[(display_df["day"] == day_num) & (display_df["slot"] == slot)]
                                 
