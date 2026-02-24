@@ -432,9 +432,135 @@ def admin_panel():
 
                         st.success("✅ TimeTable generated successfully!")
 
-                        # Display generated timetable
-                        st.subheader("Generated TimeTable:")
-                        st.dataframe(result_df, use_container_width=True)
+                        # Display generated timetable in calendar grid view
+                        st.subheader("📅 Generated College Timetable Grid")
+                        
+                        # Prepare DataFrame for display
+                        display_df = result_df.copy()
+                        
+                        # Rename columns to lowercase for consistency
+                        display_df.columns = display_df.columns.str.lower()
+                        
+                        # Day mapping
+                        days_map = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+                        
+                        # Get unique days and slots
+                        unique_days = sorted(display_df["day"].unique())
+                        unique_slots = sorted(display_df["slot"].unique())
+                        
+                        # Create color mapping for subjects
+                        subjects = display_df["subject"].unique()
+                        colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2"]
+                        subject_colors = {subject: colors[i % len(colors)] for i, subject in enumerate(subjects)}
+                        
+                        # CSS styling
+                        st.markdown("""
+                        <style>
+                        .timetable {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 15px 0;
+                            background: white;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                        }
+                        .timetable th {
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            padding: 12px;
+                            text-align: center;
+                            font-weight: 700;
+                            border: none;
+                        }
+                        .timetable td {
+                            padding: 10px;
+                            border: 1px solid #e0e0e0;
+                            text-align: center;
+                        }
+                        .timetable tr:nth-child(even) {
+                            background: #f8f9ff;
+                        }
+                        .timetable tr:nth-child(odd) {
+                            background: white;
+                        }
+                        .day-cell {
+                            font-weight: 700;
+                            color: white;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        }
+                        .subject-text {
+                            font-weight: 700;
+                            font-size: 14px;
+                            margin-bottom: 6px;
+                            display: block;
+                        }
+                        .teacher-text {
+                            font-weight: 600;
+                            font-size: 12px;
+                            display: block;
+                            margin-top: 4px;
+                        }
+                        </style>
+                        """, unsafe_allow_html=True)
+                        
+                        # Create the table as HTML string
+                        table_html = '<table class="timetable"><thead><tr><th>DAY</th>'
+                        
+                        # Add period headers
+                        for slot in unique_slots:
+                            table_html += f'<th>Period {int(slot)}</th>'
+                        table_html += '</tr></thead><tbody>'
+                        
+                        # Add rows for each day
+                        for day_num in unique_days:
+                            day_name = days_map.get(int(day_num), f"Day {int(day_num)}")
+                            table_html += f'<tr><td class="day-cell">{day_name}</td>'
+                            
+                            # Add cells for each period
+                            for slot in unique_slots:
+                                class_data = display_df[(display_df["day"] == day_num) & (display_df["slot"] == slot)]
+                                
+                                if len(class_data) > 0:
+                                    row_data = class_data.iloc[0]
+                                    subject = row_data["subject"]
+                                    teacher = row_data["teacher"]
+                                    color = subject_colors.get(subject, "#667eea")
+                                    
+                                    table_html += f'''<td style="border-left: 5px solid {color}; background: linear-gradient(135deg, {color}10 0%, {color}05 100%);">
+                                        <span class="subject-text" style="color: {color};">{subject}</span>
+                                        <span class="teacher-text" style="color: #333;">👨‍🏫 {teacher}</span>
+                                    </td>'''
+                                else:
+                                    table_html += '<td style="background: #fafafa; color: #ccc;">-</td>'
+                            
+                            table_html += '</tr>'
+                        
+                        table_html += '</tbody></table>'
+                        
+                        st.markdown(table_html, unsafe_allow_html=True)
+                        
+                        # Legend section
+                        st.markdown("---")
+                        st.markdown("### 📚 Subject Color Legend")
+                        
+                        legend_cols = st.columns(min(4, len(subject_colors)))
+                        for idx, (subject, color) in enumerate(subject_colors.items()):
+                            with legend_cols[idx % len(legend_cols)]:
+                                st.markdown(f"""
+                                <div style='
+                                    background: linear-gradient(135deg, {color} 0%, {color}dd 100%);
+                                    border-radius: 8px;
+                                    padding: 12px;
+                                    color: white;
+                                    text-align: center;
+                                    font-weight: 700;
+                                    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                                    font-size: 13px;
+                                '>
+                                    {subject}
+                                </div>
+                                """, unsafe_allow_html=True)
 
                         # Save to database
                         teachers_dict = dict(
