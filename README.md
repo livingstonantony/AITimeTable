@@ -216,3 +216,17 @@ Jecil	Python_LAB	Bsc	2
 Add another option create timetable for teachers based on the constraints, only admin can do this
 
 e.g, If i log in as particular teacher highlight that slots for teacher can see their slots very easily
+
+---------------------------
+
+
+
+⚙️ Admin Panel - Generate TimeTable
+* Need 2 options: 1 students timetable generator, 2 teachers timetable generator
+Use StudentTimeTable.py for students, TeachersTimetable.py for teachers
+
+Your TimeTable
+
+* Need 2 options: 1 students timetable generator, 2 teachers timetable
+
+Add tabs
