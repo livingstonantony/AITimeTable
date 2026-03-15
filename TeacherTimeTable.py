@@ -11,8 +11,8 @@ class TeacherTimeTable:
         slots_per_day=5,
         days=5,
         max_classes_per_day=5,
-        max_subjects_per_day=3,
-        max_subject_per_class_day=2,
+        max_subjects_per_day=1,
+        max_subject_per_class_day=1,
     ):
         self.excel_path = excel_path
         self.slots_per_day = slots_per_day
@@ -70,18 +70,19 @@ class TeacherTimeTable:
                 ) == hours
             )
 
-        # ── C2: A class has at most 1 subject per slot ───────────────────────
-        for class_name in self.classes:
-            for slot in range(self.total_slots):
-                self.model.Add(
-                    sum(
-                        self.assign[(row["Teacher"], row["Name"], row["Class"], slot)]
-                        for row in self.classes_data
-                        if row["Class"] == class_name
-                    ) <= 1
-                )
+        # ── C2: GLOBAL slot uniqueness — only 1 entry per slot school-wide ──────
+        # Single-stream school: only 1 teacher, 1 subject, 1 class per slot.
+        # This subsumes the old per-class and per-teacher slot constraints.
+        for slot in range(self.total_slots):
+            self.model.Add(
+                sum(
+                    self.assign[(row["Teacher"], row["Name"], row["Class"], slot)]
+                    for row in self.classes_data
+                ) <= 1
+            )
 
         # ── C3: A teacher teaches at most 1 class per slot ───────────────────
+        # Redundant given C2, but kept as an explicit safety guard.
         for teacher in self.teachers:
             for slot in range(self.total_slots):
                 self.model.Add(
@@ -103,7 +104,7 @@ class TeacherTimeTable:
                 ) <= max_hours
             )
 
-        # ── C5: Same subject repeats at most N times per day per class ────────
+        # ── C5: Same subject at most max_subject_per_class_day times per day per class ──
         for row in self.classes_data:
             teacher    = row["Teacher"]
             subject    = row["Name"]
@@ -144,41 +145,42 @@ class TeacherTimeTable:
                     ) <= self.max_subjects_per_day
                 )
 
-        # ── C9: Every class must have at least 1 subject on every day ───────────
-        # Prevents the solver from skipping days entirely (e.g. no Friday).
-        for class_name in self.classes:
-            for day in range(self.days):
-                self.model.Add(
-                    sum(
-                        self.assign[(row["Teacher"], row["Name"], row["Class"],
-                                     day * self.slots_per_day + s)]
-                        for row in self.classes_data
-                        if row["Class"] == class_name
-                        for s in range(self.slots_per_day)
-                    ) >= 1
-                )
+        # ── C9: At least 1 subject must be scheduled school-wide per day ────────
+        # Single-stream: only 1 slot active at a time, so we cannot require every
+        # class to appear every day. We just ensure no day is fully empty.
+        for day in range(self.days):
+            self.model.Add(
+                sum(
+                    self.assign[(row["Teacher"], row["Name"], row["Class"],
+                                 day * self.slots_per_day + s)]
+                    for row in self.classes_data
+                    for s in range(self.slots_per_day)
+                ) >= 1
+            )
 
         # ── C8 (SPREAD): Maximize filled slots across all days ────────────────
-        # For each class, on each day, create a bool that is 1 if ANY subject
-        # is scheduled that day-slot. Maximising the sum of these bools forces
-        # the solver to spread assignments across slots instead of bunching them.
+        # For each (class, slot) pair, b=1 iff exactly one subject is scheduled.
+        # C2 already guarantees sum(assignments_in_slot) is in {0, 1} for every
+        # class+slot, so we can safely use:
+        #   b >= sum   →  b must be 1 if anything is assigned
+        #   b <= sum   →  b must be 0 if nothing is assigned
+        # This makes b a tight indicator with NO risk of multiple assignments
+        # being counted as one (the old `<= b * len(...)` bug).
         slot_used = []
         for class_name in self.classes:
             for slot in range(self.total_slots):
                 b = self.model.NewBoolVar(f"used_{class_name}_{slot}")
-                # b == 1  iff  at least one subject is assigned to this slot
                 assignments_in_slot = [
                     self.assign[(row["Teacher"], row["Name"], row["Class"], slot)]
                     for row in self.classes_data
                     if row["Class"] == class_name
                 ]
-                # b <= sum(assignments)   →  b can only be 1 if something is assigned
+                # b == 1  iff  sum == 1  (sum is already capped at 1 by C2)
                 self.model.Add(sum(assignments_in_slot) >= b)
-                # sum(assignments) <= b * len(...)  →  if nothing assigned, b must be 0
-                self.model.Add(sum(assignments_in_slot) <= b * len(assignments_in_slot))
+                self.model.Add(sum(assignments_in_slot) <= b)
                 slot_used.append(b)
 
-        # Maximise total occupied slots — this is the spreading objective
+        # Maximise total occupied slots — forces even spread across the week
         self.model.Maximize(sum(slot_used))
 
     # ---------------- SOLVE ----------------

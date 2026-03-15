@@ -442,12 +442,12 @@ def teacher_admin_page():
                 )
             with col4:
                 max_subject_slots = st.number_input(
-                    "Max Subjects / Teacher / Day", min_value=1, max_value=10, value=3
+                    "Max Subjects / Teacher / Day", min_value=1, max_value=10, value=1
                 )
             with col5:
                 max_subject_per_class_day = st.number_input(
                     "Max Subject Repeat / Class / Day",
-                    min_value=1, max_value=5, value=2
+                    min_value=1, max_value=5, value=1
                 )
 
             timetable_name = st.text_input(
