@@ -1,8 +1,9 @@
 import pandas as pd
 from ortools.sat.python import cp_model
+from pathlib import Path
 
 
-class TimeTable:
+class StudentTimeTable:
     def __init__(
         self,
         excel_path,
@@ -158,8 +159,8 @@ class TimeTable:
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    timetable = TimeTable(
-        excel_path="timetable_data.xlsx",
+    timetable = StudentTimeTable(
+        excel_path="student_timetable_data.xlsx",
         max_teacher_slots_per_day=1,
         max_subject_slots_per_day=1
     )
@@ -174,4 +175,12 @@ if __name__ == "__main__":
     print(df)
 
     # ✅ Save to Excel
-    df.to_excel("final_timetable.xlsx", index=False)
+    # Project root = folder where this script exists
+    project_root = Path(__file__).resolve().parent
+
+    # outputs directory inside project
+    output_dir = project_root / "outputs"
+    output_dir.mkdir(exist_ok=True)
+
+    # Save file
+    df.to_excel(output_dir / "student_timetable_output.xlsx", index=False)

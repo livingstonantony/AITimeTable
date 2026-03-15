@@ -22,7 +22,7 @@ from database import (
     get_user,
     delete_timetable,
 )
-from TimeTable import TimeTable
+from StudentTimeTable import StudentTimeTable
 
 # Initialize database
 init_db()
@@ -455,7 +455,7 @@ def admin_panel():
                             subjects_df.to_excel(writer, sheet_name="Subjects", index=False)
 
                         # Generate timetable using TimeTable class
-                        timetable = TimeTable(
+                        timetable = StudentTimeTable(
                             excel_path=temp_file,
                             slots_per_day=slots_per_day,
                             days=days,
