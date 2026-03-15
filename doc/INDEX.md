@@ -20,7 +20,7 @@ Welcome to your **AI TimeTable Generation System**! This document will guide you
 3. Visual Guides: [`DIAGRAMS.md`](DIAGRAMS.md)
 
 ### **For Detailed Reference** (As needed)
-1. Features & Usage: [`README.md`](README.md)
+1. Features & Usage: [`README.md`](../README.md)
 2. File Reference: [`FILES_SUMMARY.md`](FILES_SUMMARY.md)
 3. This file: [`INDEX.md`](INDEX.md)
 

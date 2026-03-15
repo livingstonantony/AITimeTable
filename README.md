@@ -187,3 +187,32 @@ MIT License
 ## Support
 
 For issues or questions, please create an issue in the repository.
+
+
+FILENAME = teacher_timetable_data
+
+SHEET_NAME = Teachers
+Name	Hours
+Livin	5
+Mercy	5
+Akash	5
+Jency	5
+Jecil	5
+
+SHEET_NAME = Subjects
+Teacher	Name	Class	Hours
+Livin	C	BCA_A	2
+Livin	CPP	BCA_B	3
+Mercy	JAVA	Bsc	2
+Akash	Python	Bsc	3
+Mercy	MYSQL	BCA_A	3
+Akash	Java_LAB	Bsc	2
+Jency	MYSQL_LAB	BCA_B	2
+Jency	C_LAB	BCA_A	3
+Jecil	CPP_LAB	Bsc	3
+Jecil	Python_LAB	Bsc	2
+
+
+Add another option create timetable for teachers based on the constraints, only admin can do this
+
+e.g, If i log in as particular teacher highlight that slots for teacher can see their slots very easily
