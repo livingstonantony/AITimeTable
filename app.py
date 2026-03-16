@@ -23,7 +23,7 @@ from database import (
     get_timetable_slots,
     get_timetable_requirements,
     get_user,
-    delete_timetable, save_teacher_time_table,
+    delete_timetable, save_teacher_time_table, get_teacher_timetable_slots, get_teacher_timetable_requirements,
 )
 from StudentTimeTable import StudentTimeTable
 
@@ -172,8 +172,17 @@ def display_timetable_details(timetable):
     slots = get_timetable_slots(timetable_id)
     teachers_hours, subjects_hours = get_timetable_requirements(timetable_id)
 
+    if str(timetable['name']).startswith("Teacher_"):
+        print("teacher_timetable_selected")
+        slots = get_teacher_timetable_slots(timetable_id)
+        print("slots:", slots)
+        teachers_hours, subjects_hours = get_teacher_timetable_requirements(timetable_id)
+
+        print(f"Teacher hours: {teachers_hours}, subject hours: {subjects_hours}")
+
     if not slots:
         st.warning("⚠️ No slots in this timetable.")
+
         return
 
     # Convert to DataFrame
@@ -268,7 +277,7 @@ def display_timetable_details(timetable):
 
                 if len(class_data) > 0:
                     row_data = class_data.iloc[0]
-                    subject = row_data["subject"]
+                    subject = row_data["subject"]+" ("+row_data["class_name"]+")"
                     teacher = row_data["teacher"]
                     color = subject_colors.get(subject, "#667eea")
 

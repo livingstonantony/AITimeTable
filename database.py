@@ -271,6 +271,19 @@ def get_timetable_slots(timetable_id):
     conn.close()
     return [dict(slot) for slot in slots]
 
+def get_teacher_timetable_slots(timetable_id):
+    """Get all slots for a timetable."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM teacher_timetable_slots
+        WHERE timetable_id = ?
+        ORDER BY day, slot
+    """, (timetable_id,))
+    slots = cursor.fetchall()
+    conn.close()
+    return [dict(slot) for slot in slots]
+
 
 def get_all_timetables():
     """Get all timetables."""
@@ -300,6 +313,26 @@ def get_timetable_requirements(timetable_id):
 
     cursor.execute("""
         SELECT subject_name, required_hours FROM subject_hours
+        WHERE timetable_id = ?
+    """, (timetable_id,))
+    subjects = {row["subject_name"]: row["required_hours"] for row in cursor.fetchall()}
+
+    conn.close()
+    return teachers, subjects
+
+def get_teacher_timetable_requirements(timetable_id):
+    """Get teacher and subject hours for a timetable."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT teacher_name, required_hours FROM teacher_hours
+        WHERE timetable_id = ?
+    """, (timetable_id,))
+    teachers = {row["teacher_name"]: row["required_hours"] for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT subject_name, required_hours FROM teacher_subject_hours
         WHERE timetable_id = ?
     """, (timetable_id,))
     subjects = {row["subject_name"]: row["required_hours"] for row in cursor.fetchall()}
