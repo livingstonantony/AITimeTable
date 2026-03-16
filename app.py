@@ -23,7 +23,7 @@ from database import (
     get_timetable_slots,
     get_timetable_requirements,
     get_user,
-    delete_timetable,
+    delete_timetable, save_teacher_time_table,
 )
 from StudentTimeTable import StudentTimeTable
 
@@ -484,7 +484,7 @@ def teacher_admin_page():
 
                         result_df = timetable.to_dataframe()
 
-                        st.success(f"✅ TimeTable Generated! (Solver: {solver_status})")
+                        st.success("✅ TimeTable Generated Successfully by AI!")
                         st.dataframe(result_df, use_container_width=True)
 
                         # ---------------- GRID DISPLAY ----------------
@@ -599,6 +599,35 @@ def teacher_admin_page():
                         # FIX: estimate height based on number of rows so it doesn't clip
                         table_height = max(400, len(unique_days) * 80 + 60)
                         components.html(html, height=table_height, scrolling=True)
+
+                        # Save to database
+                        teachers_dict = dict(
+                            zip(teachers_df["Name"].str.strip(), teachers_df["Hours"])
+                        )
+                        print("teachers_dict: ", teachers_dict)
+
+                        subjects_dict = {
+                            (teacher.strip(), subject.strip(), class_name.strip()): hours
+                            for teacher, subject, class_name, hours in zip(
+                                classes_df["Teacher"],
+                                classes_df["Name"],
+                                classes_df["Class"],
+                                classes_df["Hours"],
+                            )
+                        }
+
+                        print("subjects_dict:", subjects_dict)
+                        timetable_id = save_teacher_time_table(
+                            name=timetable_name,
+                            days=days,
+                            slots_per_day=slots_per_day,
+                            df=result_df,
+                            teachers_hours=teachers_dict,
+                            subjects_hours=subjects_dict,
+                            user_id=st.session_state.user["id"],
+                        )
+
+                        st.success(f"✅ TimeTable saved to database (ID: {timetable_id})")
 
                         # ---------------- DOWNLOAD ----------------
                         excel_buffer = io.BytesIO()
@@ -717,6 +746,7 @@ def student_admin_page():
 
                         # Success message with celebration
                         st.success("✅ TimeTable Generated Successfully by AI!")
+                        st.dataframe(result_df, use_container_width=True)
 
                         # Display generated timetable in calendar grid view
                         st.subheader("📅 Generated College Timetable Grid")
