@@ -277,7 +277,13 @@ def display_timetable_details(timetable):
 
                 if len(class_data) > 0:
                     row_data = class_data.iloc[0]
-                    subject = row_data["subject"]+" ("+row_data["class_name"]+")"
+
+                    class_name = row_data.get("class_name")
+                    if class_name:
+                        subject = f"{row_data['subject']} ({class_name})"
+                    else:
+                        subject = row_data["subject"]
+
                     teacher = row_data["teacher"]
                     color = subject_colors.get(subject, "#667eea")
 
@@ -606,8 +612,29 @@ def teacher_admin_page():
                         html += "</tbody></table></div>"
 
                         # FIX: estimate height based on number of rows so it doesn't clip
-                        table_height = max(400, len(unique_days) * 80 + 60)
-                        components.html(html, height=table_height, scrolling=True)
+                        st.markdown(html, unsafe_allow_html=True)
+
+                        # Legend section
+                        st.markdown("---")
+                        st.markdown("### 📚 Subject Color Legend")
+
+                        legend_cols = st.columns(min(4, len(subject_colors)))
+                        for idx, (subject, color) in enumerate(subject_colors.items()):
+                            with legend_cols[idx % len(legend_cols)]:
+                                st.markdown(f"""
+                                <div style='
+                                    background: linear-gradient(135deg, {color} 0%, {color}dd 100%);
+                                    border-radius: 8px;
+                                    padding: 12px;
+                                    color: white;
+                                    text-align: center;
+                                    font-weight: 700;
+                                    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                                    font-size: 13px;
+                                '>
+                                    {subject}
+                                </div>
+                                """, unsafe_allow_html=True)
 
                         # Save to database
                         teachers_dict = dict(
