@@ -445,29 +445,29 @@ def teacher_admin_page():
 
             with col1:
                 slots_per_day = st.number_input(
-                    "Slots per Day", min_value=1, max_value=10, value=5
+                    "Slots per Day", min_value=1, max_value=10, value=5, key="teacher_slots_per_day"
                 )
             with col2:
                 days = st.number_input(
-                    "Days", min_value=1, max_value=7, value=5
+                    "Days", min_value=1, max_value=7, value=5, key="teacher_days"
                 )
             with col3:
                 max_teacher_slots = st.number_input(
-                    "Max Classes / Teacher / Day", min_value=1, max_value=10, value=5
+                    "Max Classes / Teacher / Day", min_value=1, max_value=10, value=5, key="teacher_max_classes"
                 )
             with col4:
                 max_subject_slots = st.number_input(
-                    "Max Subjects / Teacher / Day", min_value=1, max_value=10, value=1
+                    "Max Subjects / Teacher / Day", min_value=1, max_value=10, value=1, key="teacher_max_subjects"
                 )
             with col5:
                 max_subject_per_class_day = st.number_input(
                     "Max Subject Repeat / Class / Day",
-                    min_value=1, max_value=5, value=1
+                    min_value=1, max_value=5, value=1, key="teacher_max_repeat"
                 )
 
             timetable_name = st.text_input(
                 "TimeTable Name",
-                value=f"Teacher_TimeTable_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                value=f"Teacher_TimeTable_{datetime.now().strftime('%Y%m%d_%H%M%S')}", key="teacher_timetable_name"
             )
 
             # ---------------- GENERATE ----------------
@@ -732,24 +732,25 @@ def student_admin_page():
 
             with col1:
                 slots_per_day = st.number_input(
-                    "Slots per Day", min_value=1, max_value=10, value=5
+                    "Slots per Day", min_value=1, max_value=10, value=5, key="student_slots_per_day"
                 )
 
             with col2:
-                days = st.number_input("Number of Days", min_value=1, max_value=7, value=5)
+                days = st.number_input("Number of Days", min_value=1, max_value=7, value=5, key="student_days")
 
             with col3:
                 max_teacher_slots = st.number_input(
-                    "Max Teacher Slots/Day", min_value=1, max_value=5, value=1
+                    "Max Teacher Slots/Day", min_value=1, max_value=5, value=1, key="student_max_teacher_slots"
                 )
 
             with col4:
                 max_subject_slots = st.number_input(
-                    "Max Subject Slots/Day", min_value=1, max_value=5, value=1
+                    "Max Subject Slots/Day", min_value=1, max_value=5, value=1, key="student_max_subject_slots"
                 )
 
             timetable_name = st.text_input("TimeTable Name",
-                                           value=f"Student_TimeTable_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+                                           value=f"Student_TimeTable_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                                           key="student_timetable_name")
 
             # Generate timetable
             if st.button("🚀 Generate TimeTable", key="generate_btn"):
