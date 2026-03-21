@@ -52,7 +52,6 @@ def init_db():
             timetable_id INTEGER NOT NULL,
             day INTEGER NOT NULL,
             slot INTEGER NOT NULL,
-            teacher TEXT NOT NULL,
             subject TEXT NOT NULL,
             FOREIGN KEY (timetable_id) REFERENCES timetables(id)
         )
@@ -209,7 +208,7 @@ def save_teacher_time_table(name, days, slots_per_day, df, teachers_hours, subje
 
 
 # ==================== TIMETABLE MANAGEMENT ====================
-def save_timetable(name, days, slots_per_day, df, teachers_hours, subjects_hours, user_id):
+def save_timetable(name, days, slots_per_day, df, subjects_hours, user_id):
     """Save generated timetable to database."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -225,16 +224,11 @@ def save_timetable(name, days, slots_per_day, df, teachers_hours, subjects_hours
     # Insert slots
     for _, row in df.iterrows():
         cursor.execute("""
-            INSERT INTO timetable_slots (timetable_id, day, slot, teacher, subject)
-            VALUES (?, ?, ?, ?, ?)
-        """, (timetable_id, int(row["Day"]), int(row["Slot"]), row["Teacher"], row["Subject"]))
+            INSERT INTO timetable_slots (timetable_id, day, slot, subject)
+            VALUES (?, ?, ?, ?)
+        """, (timetable_id, int(row["Day"]), int(row["Slot"]), row["Subject"]))
 
-    # Insert teacher hours
-    for teacher, hours in teachers_hours.items():
-        cursor.execute("""
-            INSERT INTO teacher_hours (timetable_id, teacher_name, required_hours)
-            VALUES (?, ?, ?)
-        """, (timetable_id, teacher, hours))
+
 
     # Insert subject hours
     for subject, hours in subjects_hours.items():
@@ -355,6 +349,7 @@ def delete_timetable(timetable_id):
         cursor.execute("DELETE FROM teacher_subject_hours WHERE timetable_id = ?", (timetable_id,))
         # Delete the timetable itself
         cursor.execute("DELETE FROM timetables WHERE id = ?", (timetable_id,))
+        # cursor.execute("DROP TABLE timetable_slots")
 
         conn.commit()
         return True

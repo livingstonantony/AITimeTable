@@ -54,25 +54,36 @@ class TeacherTimeTable:
             subject    = row["Name"]
             class_name = row["Class"]
             for slot in range(self.total_slots):
+                print(teacher, subject, class_name, slot)
+
                 self.assign[(teacher, subject, class_name, slot)] = \
                     self.model.NewBoolVar(f"{teacher}_{subject}_{class_name}_{slot}")
 
+        print("\n------\n")
         # ── C1: Each (subject, class) assigned exactly 'hours' slots ─────────
         for row in self.classes_data:
             teacher    = row["Teacher"]
             subject    = row["Name"]
             class_name = row["Class"]
             hours      = int(row["Hours"])
-            self.model.Add(
-                sum(
+
+            sum_data = sum(
                     self.assign[(teacher, subject, class_name, s)]
                     for s in range(self.total_slots)
-                ) == hours
+                )
+            print(teacher, subject, class_name, hours, subject)
+
+            self.model.Add(
+                sum_data == hours
             )
 
         # ── C2: GLOBAL slot uniqueness — only 1 entry per slot school-wide ──────
         # Single-stream school: only 1 teacher, 1 subject, 1 class per slot.
         # This subsumes the old per-class and per-teacher slot constraints.
+
+        print("\n------\n")
+        print(cl for cl in self.classes)
+
         for slot in range(self.total_slots):
             self.model.Add(
                 sum(

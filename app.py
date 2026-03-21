@@ -284,12 +284,14 @@ def display_timetable_details(timetable):
                     else:
                         subject = row_data["subject"]
 
-                    teacher = row_data["teacher"]
+                    # Find the teacher column regardless of casing
+                    teacher_col = next((col for col in row_data.index if col.lower() == "teacher"), None)
+                    teacher_name =  ("👨‍🏫 " +str(row_data[teacher_col]) if teacher_col else "")
                     color = subject_colors.get(subject, "#667eea")
 
                     table_html += f'''<td style="border-left: 5px solid {color}; background: linear-gradient(135deg, {color}10 0%, {color}05 100%);">
                         <span class="subject-text" style="color: {color};">{subject}</span>
-                        <span class="teacher-text" style="color: #333;">👨‍🏫 {teacher}</span>
+                        <span class="teacher-text" style="color: #333;">{teacher_name}</span>
                     </td>'''
                 else:
                     table_html += '<td style="background: #fafafa; color: #ccc;">-</td>'
@@ -327,7 +329,11 @@ def display_timetable_details(timetable):
 
         # Prepare data
         display_df = df.copy()
-        display_df = display_df[["day", "slot", "teacher", "subject"]].copy()
+        teacher_name = row_data.get("teacher")
+        if teacher_name:
+            display_df = display_df[["day", "slot", "teacher", "subject"]].copy()
+        else:
+            display_df = display_df[["day", "slot", "subject"]].copy()
 
         # Map day numbers to names
         day_names = {1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
@@ -336,7 +342,11 @@ def display_timetable_details(timetable):
         display_df = display_df.sort_values(["day", "slot"])
 
         # Rename columns with emojis
-        display_df.columns = ["day", "Slot", "Teacher", "Subject"]
+        teacher_name = row_data.get("teacher")
+        if teacher_name:
+            display_df.columns = ["day", "Slot", "Teacher", "Subject"]
+        else:
+            display_df.columns = ["day", "Slot", "Subject"]
 
         # Display as dataframe
         st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -347,7 +357,9 @@ def display_timetable_details(timetable):
         with col1:
             st.metric("Total Classes", len(display_df), help="Total scheduled classes")
         with col2:
-            st.metric("Unique Teachers", display_df["Teacher"].nunique(), help="Number of different teachers")
+            teacher_name = row_data.get("teacher")
+            if teacher_name:
+                st.metric("Unique Teachers", display_df["Teacher"].nunique(), help="Number of different teachers")
         with col3:
             st.metric("Unique Subjects", display_df["Subject"].nunique(), help="Number of different subjects")
 
@@ -705,30 +717,23 @@ def student_admin_page():
     if uploaded_file is not None:
         try:
             # Load Excel file
-            teachers_df = pd.read_excel(uploaded_file, sheet_name="Teachers")
             subjects_df = pd.read_excel(uploaded_file, sheet_name="Subjects")
 
-            teachers_df.columns = teachers_df.columns.str.strip()
             subjects_df.columns = subjects_df.columns.str.strip()
 
             st.success("✅ Excel file loaded successfully!")
 
             # Display loaded data
-            col1, col2 = st.columns(2)
 
-            with col1:
-                st.write("**Teachers:**")
-                st.dataframe(teachers_df, use_container_width=True)
 
-            with col2:
-                st.write("**Subjects:**")
-                st.dataframe(subjects_df, use_container_width=True)
+            st.write("**Subjects:**")
+            st.dataframe(subjects_df, use_container_width=True)
 
             # Parameters configuration
             st.divider()
             st.subheader("Configure TimeTable Parameters")
 
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
                 slots_per_day = st.number_input(
@@ -738,12 +743,8 @@ def student_admin_page():
             with col2:
                 days = st.number_input("Number of Days", min_value=1, max_value=7, value=5, key="student_days")
 
-            with col3:
-                max_teacher_slots = st.number_input(
-                    "Max Teacher Slots/Day", min_value=1, max_value=5, value=1, key="student_max_teacher_slots"
-                )
 
-            with col4:
+            with col3:
                 max_subject_slots = st.number_input(
                     "Max Subject Slots/Day", min_value=1, max_value=5, value=1, key="student_max_subject_slots"
                 )
@@ -763,7 +764,6 @@ def student_admin_page():
                         temp_file = "temp_timetable_input.xlsx"
 
                         with pd.ExcelWriter(temp_file, engine="openpyxl") as writer:
-                            teachers_df.to_excel(writer, sheet_name="Teachers", index=False)
                             subjects_df.to_excel(writer, sheet_name="Subjects", index=False)
 
                         # Generate timetable using TimeTable class
@@ -771,7 +771,6 @@ def student_admin_page():
                             excel_path=temp_file,
                             slots_per_day=slots_per_day,
                             days=days,
-                            max_teacher_slots_per_day=max_teacher_slots,
                             max_subject_slots_per_day=max_subject_slots,
                         )
 
@@ -850,12 +849,6 @@ def student_admin_page():
                             margin-bottom: 6px;
                             display: block;
                         }
-                        .teacher-text {
-                            font-weight: 600;
-                            font-size: 12px;
-                            display: block;
-                            margin-top: 4px;
-                        }
                         </style>
                         """, unsafe_allow_html=True)
 
@@ -879,12 +872,10 @@ def student_admin_page():
                                 if len(class_data) > 0:
                                     row_data = class_data.iloc[0]
                                     subject = row_data["subject"]
-                                    teacher = row_data["teacher"]
                                     color = subject_colors.get(subject, "#667eea")
 
                                     table_html += f'''<td style="border-left: 5px solid {color}; background: linear-gradient(135deg, {color}10 0%, {color}05 100%);">
                                         <span class="subject-text" style="color: {color};">{subject}</span>
-                                        <span class="teacher-text" style="color: #333;">👨‍🏫 {teacher}</span>
                                     </td>'''
                                 else:
                                     table_html += '<td style="background: #fafafa; color: #ccc;">-</td>'
@@ -917,10 +908,6 @@ def student_admin_page():
                                 </div>
                                 """, unsafe_allow_html=True)
 
-                        # Save to database
-                        teachers_dict = dict(
-                            zip(teachers_df["Name"].str.strip(), teachers_df["Hours"])
-                        )
                         subjects_dict = dict(
                             zip(subjects_df["Name"].str.strip(), subjects_df["Hours"])
                         )
@@ -930,7 +917,6 @@ def student_admin_page():
                             days=days,
                             slots_per_day=slots_per_day,
                             df=result_df,
-                            teachers_hours=teachers_dict,
                             subjects_hours=subjects_dict,
                             user_id=st.session_state.user["id"],
                         )
